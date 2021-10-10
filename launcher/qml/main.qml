@@ -755,7 +755,7 @@ ApplicationWindow {
     // To load icons from folder list
     Timer {
         id: loadApplicationTimer
-        interval: 500
+        interval: 0
         running: false
         onTriggered: {
             if (isLoadApplicationTriggered) {
