@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.3
 import Process 1.0
 import QtQuick.Window 2.2
 import Qt.labs.folderlistmodel 2.0
+import QtQuick.Dialogs 1.1
 
 ApplicationWindow {
     id: window
@@ -363,11 +364,27 @@ ApplicationWindow {
                         anchors.fill: parent
                         onClicked: {
                             // log("Icon on click" + JSON.stringify(categoriedAppList[currentCategory][appName]));
-                            var arguments = appData[appName].appParam
-                            process.setProgram(appExec)
-                            process.setArguments(arguments)
-                            process.startDetached()
-                            killTimer.start()
+                            var result = parseCommandLine(appName)
+                            if (result.length === 0) {
+                                messageBox.text = "Desktop entry contains no valid Exec line!";
+                                messageBox.open();
+                                return;
+                            }
+                            var executable = result[0];
+                            var arguments = result.slice(1);
+                            process.setProgram(executable);
+                            process.setArguments(arguments);
+                            if (appPath) {
+                                process.setWorkingDirectory(appPath);
+                            } else {
+                                process.setWorkingDirectoryHome()
+                            }
+                            if (process.startDetached()) {
+                               killTimer.start()
+                            } else {
+                               messageBox.text = "Invalid desktop file: '" + appUrl + "'";
+                               messageBox.open();
+                            }
                         }
                     }
                     Timer {
@@ -405,6 +422,13 @@ ApplicationWindow {
             appDraw.visible = false
             // language.setLanguage(lang)
         }
+    }
+
+    MessageDialog {
+        id: messageBox
+        title: window.title
+        icon: StandardIcon.Critical
+        modality: Qt.ApplicationModal
     }
 
     // 系统安装APP的文件获取模型
@@ -468,7 +492,7 @@ ApplicationWindow {
             var displayName = "";
             var icon = "";
             var exec = "";
-            var param = [];
+            var path = "";
             var categories = [];
             var desktopType = "";
             var isShow = true;
@@ -516,22 +540,8 @@ ApplicationWindow {
                     icon = value;
                 } else if (arg === "Exec") {
                     exec = value;
-                    if (exec.indexOf(",") !== -1) {
-                        exec = exec.split(",");
-                        param = exec.slice(1);
-                        exec = exec[0];
-                    } else if (exec.indexOf(" ") !== -1) {
-                        exec = exec.split(" ");
-                        param = exec.slice(1);
-                        exec = exec[0];
-                    }
-                    var newParam = [];
-                    for (var paramI = 0; paramI < param.length; paramI++) {
-                        if (!param[paramI].startsWith("%")) {
-                            newParam.push(param[paramI]);
-                        }
-                    }
-                    param = newParam;
+                } else if (arg === "Path") {
+                    path = value;
                 } else if (arg === "Terminal") {
                     if (value === "true") {
                         isShow = false;
@@ -570,7 +580,7 @@ ApplicationWindow {
                 "appIcon": icon,
                 "appUrl": url,
                 "appExec": exec,
-                "appParam": param,
+                "appPath": path,
                 "appIsShow" : isShow || isWhiteListed
             }
             // log("appData[" + fileID + "]:")
@@ -699,7 +709,7 @@ ApplicationWindow {
             log("Categories: " + app.appCategories);
             log("Icon: " + app.appIcon);
             log("Exec: " + app.appExec);
-            log("Param: " + app.appParam);
+            log("Path: " + app.appPath);
             log("isShow: " + app.appIsShow);
         }
     }
@@ -797,6 +807,167 @@ ApplicationWindow {
     // For running command
     Process {
         id: process
+    }
+
+    function  doEscapingFirstLevel(text) {
+        var replaced = '';
+        for (var i = 0; i < text.length; i++) {
+            var ch = ''
+            if (text[i] =='\\') {
+                if (i === text.length - 1) {
+                    break;
+                }
+                i++
+                var nextChar = text[i];
+                if (nextChar === 'n') {
+                    ch = '\n';
+                } else if (nextChar === 'r') {
+                    ch = '\r';
+                } else if (nextChar === 's') {
+                    ch = ' ';
+                } else if (nextChar === 't') {
+                    ch = '\t';
+                } else if (nextChar === '\\') {
+                    ch = '\\';
+                } else {
+                    ch = '\\'
+                    i--;
+                }
+            } else {
+               ch = text[i];
+            }
+            replaced += ch;
+        }
+        return replaced;
+    }
+
+    function replaceFieldCodes(text, fileID) {
+        var replaced = '';
+        var i = 0;
+        while (i < text.length) {
+            var next = text.indexOf('%', i)
+            if (next !== -1) {
+                var code = '';
+                var field = '';
+                if (next < text.length - 1) {
+                    var code = text[next + 1];
+                }
+                if (code === 'i') {
+                    field = '--icon ' + appData[fileID].appIcon;
+                } else if (code === 'c') {
+                    field = "'" + appData[fileID].displayName + "'";
+                } else if (code === 'k') {
+                    var path = appData[fileID].appUrl;
+                    field = path.slice(0, path.lastIndexOf('/'))
+                } else if (code === '%') {
+                    field = '%';
+                }
+                // $f, %F, %u, %U are not used with a file list and must be
+                // removed, as well as all other codes (deprecated and undeifned.
+                replaced += text.slice(i, next) + field;
+                i = next + 2;
+            } else {
+                replaced += text.slice(i);
+                break;
+            }
+        }
+        return replaced;
+    }
+
+    function isWhiteSpace(ch) {
+        return ch === ' ' || ch === '\t' || ch === '\n'
+    }
+
+    function doEscapingSecondLevelAndSplitArguments(text) {
+        var args = [];
+        var arg = '';
+        var inArg = false;
+        var quoted = 0;
+        for (var i = 0; i < text.length; i++) {
+            var ch = text[i];
+            if (isWhiteSpace(ch)) {
+                if (inArg) {
+                    if (quoted) {
+                        arg += ch;
+                    } else {
+                        args.push(arg);
+                        arg = '';
+                        inArg = false;
+                    }
+                } else {
+                }
+                continue;
+            }
+            if (!inArg) {
+                inArg = true
+            }
+            if (ch === "'") {
+                if (quoted === 0) {
+                    quoted = 1;
+                } else if (quoted === 1) {
+                    quoted = 0;
+                } else { // quoted === 2
+                    arg += ch;
+                }
+            } else if (ch === '"') {
+                if (quoted === 0) {
+                    quoted = 2;
+                } else if (quoted === 2) {
+                    quoted = 0;
+                } else { // quoted === 1
+                    arg += ch;
+                }
+            } else if (ch === '\\') {
+                if (quoted === 0) {
+                    if (i == text.length - 1) {
+                        // Invalid Exec value.
+                        return ['']
+                    }
+                    i++;
+                    next = text[i];
+                    if (next !== '\n') {
+                        arg += next;
+                    }
+                } else if (quoted === 1) {
+                    arg += ch;
+                } else { // quoted === 2
+                    if (i == text.length - 1) {
+                        // Invalid Exec value.
+                        return ['']
+                    }
+                    i++;
+                    var next = text[i];
+                    if (next === '"' || next === '\\' || next === '$'
+                        || next === '`' || next === '\n') {
+                        arg += next;
+                    } else {
+                        arg += ch + next;
+                    }
+                }
+            } else {
+               arg += ch;
+            }
+        }
+        if (quoted) {
+            // Invalid Exec value.
+            return ['']
+        } else {
+            if (inArg) {
+                args.push(arg)
+            }
+            return args
+        }
+    }
+
+    function parseCommandLine(fileID) {
+        var execValue = appData[fileID].appExec;
+        var escaped1 = doEscapingFirstLevel(execValue);
+        var withFields = replaceFieldCodes(escaped1, fileID);
+        var arguments = doEscapingSecondLevelAndSplitArguments(withFields)
+        // First argument is the executable, and is '' in invalid execValue,
+        // arguments is empty list, when execValue just consists of whitespace,
+        // or Exec key was not present in desktop file.
+        return arguments
     }
 
 }
