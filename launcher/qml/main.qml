@@ -372,6 +372,16 @@ ApplicationWindow {
                             }
                             var executable = result[0];
                             var arguments = result.slice(1);
+                            if (!fileinfo.exexcutableFileExists(executable)) {
+                                messageBox.text = "Invalid desktop file: '" + appUrl + "'";
+                                messageBox.open();
+                                return;
+                            }
+                            if (appInTerminal) {
+                                executable = "lxterminal"
+                                arguments = result;
+                                arguments.unshift("-e");
+                            }
                             process.setProgram(executable);
                             process.setArguments(arguments);
                             if (appPath) {
@@ -382,7 +392,7 @@ ApplicationWindow {
                             if (process.startDetached()) {
                                killTimer.start()
                             } else {
-                               messageBox.text = "Invalid desktop file: '" + appUrl + "'";
+                               messageBox.text = "Error starting command of desktop file: '" + appUrl + "'";
                                messageBox.open();
                             }
                         }
@@ -493,6 +503,7 @@ ApplicationWindow {
             var path = "";
             var categories = ["None"];
             var desktopType = "";
+            var inTerminal = false;
             var isShow = true;
             var isWhiteListed = false;
             var locale = Qt.locale().name;
@@ -566,7 +577,7 @@ ApplicationWindow {
                     }
                 } else if (arg === "Terminal") {
                     if (value === "true") {
-                        isShow = false;
+                        inTerminal = true;
                     }
                 } else if (arg === "NoDisplay") {
                     // log("NoDisplay true: " + url);
@@ -615,6 +626,7 @@ ApplicationWindow {
                 "appUrl": url,
                 "appExec": exec,
                 "appPath": path,
+                "appInTerminal": inTerminal,
                 "appIsShow" : isShow || isWhiteListed
             }
             // log("appData[" + fileID + "]:")
@@ -744,6 +756,7 @@ ApplicationWindow {
             log("Icon: " + app.appIcon);
             log("Exec: " + app.appExec);
             log("Path: " + app.appPath);
+            log("Terminal: " + app.appInTerminal);
             log("isShow: " + app.appIsShow);
         }
     }
