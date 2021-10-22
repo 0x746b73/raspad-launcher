@@ -17,7 +17,6 @@ ApplicationWindow {
     flags: Qt.FramelessWindowHint
     title: 'RasPad Launcher'
 
-    property string setlang
     property string settime
     property int iconGridWidth: 178
     property int iconGridHeight: 200
@@ -28,7 +27,6 @@ ApplicationWindow {
     property bool systemApplicationsFolderListDone: false
     property bool isLoadApplicationTriggered: false
 
-    property int lang
     property var appData: {}
     property var categoriedAppList: {
         "Home": ["scratch3.desktop", "Ezblock Studio ???.desktop", "chromium-browser.desktop", "minecraft-pi.desktop", "mu.codewith.editor.desktop", "libreoffice-writer.desktop", "libreoffice-calc.desktop", "libreoffice-impress.desktop", "pcmanfm.desktop", "lxterminal.desktop", "raspad-faq.desktop"],
@@ -61,18 +59,6 @@ ApplicationWindow {
     property var currentCategory: "Home"
 
     property string errorNetwork: qsTr("Network Error")
-
-    // Set language after everythings done
-    Component.onCompleted: {
-        var l = Qt.locale().name.substring(0,2);
-        // log(l);
-        if (l == "zh") {
-            lang = 1;
-        } else {
-            lang = 0;
-        }
-        language.setLanguage(lang);
-    }
 
     // Panel
     Rectangle {
@@ -207,7 +193,6 @@ ApplicationWindow {
                     // log("currentCategory: "+ currentCategory);
                     if (categoriedAppList[currentCategory] === undefined) {
                         loader.source = model.page.toLowerCase() + ".qml";
-                        // language.setLanguage(lang);
                     } else {
                         reloadAppList(model.name);
                     }
@@ -429,7 +414,6 @@ ApplicationWindow {
             // log("Load source: " + loader.source);
             loader.visible = true
             appDraw.visible = false
-            // language.setLanguage(lang)
         }
     }
 
@@ -506,7 +490,7 @@ ApplicationWindow {
             var isShow = true;
             var isWhiteListed = false;
             var locale = Qt.locale().name;
-            var langName = locale.substring(0,2);
+            var lang = locale.substring(0,2);
 
             for (var j = 0; j < contents.length; j++) {
                 var line = contents[j];
@@ -536,7 +520,7 @@ ApplicationWindow {
                     // Index 2 = matched lang_COUNTRY string.
                     if (match[2] === locale) {
                         name["lang_COUNTRY"] = value;
-                    } else if (match[2] === langName) {
+                    } else if (match[2] === lang) {
                         name["lang"] = value;
                     } else if (match[0] === "Name") {
                         name["default"] = value;
@@ -549,7 +533,7 @@ ApplicationWindow {
                     // Index 2 = matched lang_COUNTRY string.
                     if (match[2] === locale) {
                         genericName["lang_COUNTRY"] = value;
-                    } else if (match[2] === langName) {
+                    } else if (match[2] === lang) {
                         genericName["lang"] = value;
                     } else if (match[0] === "GenericName") {
                         genericName["default"] = value;
@@ -720,7 +704,6 @@ ApplicationWindow {
     }
     function reloadAppList(name) {
         // log("reloadAppList(" + name + ")");
-        // language.setLanguage(lang);
         if (name !== undefined) {
             appDrawLabelText.text = name;
         }
