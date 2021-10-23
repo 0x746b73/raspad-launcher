@@ -54,7 +54,35 @@ Rectangle {
         }
         MouseArea {
             anchors.fill: parent
-            onClicked: process.start(input.text, []);
+            onClicked: {
+                var result = doEscapingSecondLevelAndSplitArguments(input.text)
+                if (result.length === 0) {
+                    messageBox.text = "Text is empty (or only consists of whitespace).";
+                    messageBox.open();
+                    return;
+                }
+                var executable = result[0];
+                var args = result.slice(1);
+                if (executable === '') {
+                    messageBox.text = "Invalid command line!";
+                    messageBox.open();
+                    return;
+                }
+                process.setProgram(executable);
+                process.setArguments(args);
+                process.setWorkingDirectoryHome()
+                // Detach process from current stdin, stdout,
+                // stderr, so that especially console programs
+                // don't clutter the console of our launcher.
+                process.setStandardFilesToNull();
+
+                if (process.startDetached()) {
+                    Qt.quit();
+                } else {
+                   messageBox.text = "Error starting command!";
+                   messageBox.open();
+                }
+            }
         }
     }
 /*
