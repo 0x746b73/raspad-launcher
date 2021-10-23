@@ -6,6 +6,7 @@ import QtQuick.Window 2.2
 import Qt.labs.folderlistmodel 2.0
 import QtQuick.Dialogs 1.1
 import FileInfo 1.0
+import ProcessEnvironment 1.0
 
 ApplicationWindow {
     id: window
@@ -457,6 +458,8 @@ ApplicationWindow {
         // log("loadFromFolderListModel(")
         // logFolderList(folderList)
         // log(")")
+        var curDesktops = environment.getenv("XDG_CURRENT_DESKTOP").split(';');
+
         var all_categories = [];
         var desktops = [];
         for (var i = 0; i < folderList.count; i++) {
@@ -561,6 +564,26 @@ ApplicationWindow {
             }
             if (!displayName) {
                 isShow = false;
+            }
+
+            var onlyShowIn = map["OnlyShowIn"];
+            if (onlyShowIn && isShow) {
+                isShow = false;
+                for (var k = 0; k < curDesktops.length; k++) {
+                    if (onlyShowIn.indexOf(curDesktops[k]) !== -1) {
+                        isShow = true;
+                        break;
+                    }
+                }
+            }
+            var notShowIn = map["NotShowIn"];
+            if (notShowIn) {
+                for (var k = 0; k < curDesktops.length; k++) {
+                    if (notShowIn.indexOf(curDesktops[k]) !== -1) {
+                        isShow = false;
+                        break;
+                    }
+                }
             }
             if (blacklist.indexOf(fileID) !== -1) {
                 isShow = false;
@@ -797,6 +820,10 @@ ApplicationWindow {
     // For finding command
     FileInfo {
         id: fileinfo
+    }
+    // For accessing the environment
+    ProcessEnvironment {
+        id: environment
     }
 
     function  doEscapingFirstLevel(text) {
