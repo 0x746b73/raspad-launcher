@@ -9,7 +9,7 @@
 
 PID=`pidof raspad-launcher`
 if [ ! -e $PID ]; then
-	kill PID
+	kill $PID
 else
 	raspad-launcher&
 fi
