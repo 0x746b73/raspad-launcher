@@ -5,4 +5,5 @@ Exec=/usr/local/bin/raspad-launcher-helper
 Type=Application
 Icon=/usr/share/icons/raspad.png
 Categories=Panel;MB
+StartupNotify=false
 X-MB-INPUT-MECHANSIM=True
