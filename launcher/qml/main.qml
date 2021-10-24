@@ -166,6 +166,7 @@ ApplicationWindow {
                 bottomMargin: 9
                 margins: 2
             }
+            ScrollBar.vertical: ScrollBar{}
             model: categoryList
             delegate: Button {
                 width: 242
@@ -296,6 +297,7 @@ ApplicationWindow {
                 topMargin: 30
                 bottomMargin: 62
             }
+            ScrollBar.vertical: ScrollBar{}
             model: appDrawList
             delegate: Column {
                 Rectangle {
