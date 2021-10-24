@@ -156,7 +156,7 @@ ApplicationWindow {
             id: listView
             width: 242
             clip: true
-            interactive: false
+            boundsBehavior: Flickable.StopAtBounds
             anchors {
                 top: logo.bottom
                 left: parent.left
@@ -166,7 +166,6 @@ ApplicationWindow {
                 bottomMargin: 9
                 margins: 2
             }
-            ScrollBar.vertical: ScrollBar{}
             model: categoryList
             delegate: Button {
                 width: 242
