@@ -511,6 +511,10 @@ ApplicationWindow {
                 map[arg] = value;
             }
 
+            if (map["Type"] !== "Application") {
+                continue;
+            }
+
             var categories = ["None"];
             if (map["Categories"]) {
                 categories = map["Categories"].split(";");
